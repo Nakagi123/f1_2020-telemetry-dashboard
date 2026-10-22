@@ -1,6 +1,29 @@
 import { Radio } from "lucide-react";
 
-export function DashboardHeader() {
+import type { ConnectionStatus } from "../../hooks/useTelemetry";
+
+interface DashboardHeaderProps {
+  status: ConnectionStatus;
+}
+
+const statusStyles = {
+  connected:
+    "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+  connecting:
+    "border-amber-500/30 bg-amber-500/10 text-amber-400",
+  disconnected:
+    "border-red-500/30 bg-red-500/10 text-red-400",
+};
+
+const statusLabels = {
+  connected: "BACKEND CONNECTED",
+  connecting: "CONNECTING...",
+  disconnected: "DISCONNECTED",
+};
+
+export function DashboardHeader({
+  status,
+}: DashboardHeaderProps) {
   return (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -17,9 +40,11 @@ export function DashboardHeader() {
         </p>
       </div>
 
-      <div className="flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-400">
+      <div
+        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${statusStyles[status]}`}
+      >
         <Radio size={16} />
-        DEMO MODE
+        {statusLabels[status]}
       </div>
     </header>
   );

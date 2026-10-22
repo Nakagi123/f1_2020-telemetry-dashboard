@@ -10,7 +10,18 @@ import { logTelemetry } from "./telemetry.logger.js";
 import { decodeSession } from "./telemetry.session.js";
 import { decodePlayerInfo } from "./telemetry.participants.js";
 
-export function startTelemetryReceiver(): () => Promise<void> {
+export interface TelemetryMessage {
+  type: "telemetry" | "session" | "driver";
+  data: unknown;
+}
+
+export type TelemetryCallback = (
+  message: TelemetryMessage
+) => void;
+
+export function startTelemetryReceiver(
+  onData?: TelemetryCallback
+): () => Promise<void> {
   const socket = dgram.createSocket("udp4");
 
   let isClosed = false;
@@ -32,9 +43,18 @@ export function startTelemetryReceiver(): () => Promise<void> {
       case PACKET_ID.CAR_TELEMETRY: {
         const telemetry = decodeCarTelemetry(message);
 
-        if (telemetry) {
-          logTelemetry(telemetry);
+        if (!telemetry) {
+          break;
         }
+
+        // Keep terminal logging throttled.
+        logTelemetry(telemetry);
+
+        // Send every decoded update to WebSocket.
+        onData?.({
+          type: "telemetry",
+          data: telemetry,
+        });
 
         break;
       }
@@ -66,6 +86,12 @@ export function startTelemetryReceiver(): () => Promise<void> {
           );
         }
 
+        // Broadcast session information.
+        onData?.({
+          type: "session",
+          data: session,
+        });
+
         break;
       }
 
@@ -92,6 +118,12 @@ export function startTelemetryReceiver(): () => Promise<void> {
             `🔢 Race number: ${player.raceNumber}\n`
           );
         }
+
+        // Broadcast driver information.
+        onData?.({
+          type: "driver",
+          data: player,
+        });
 
         break;
       }

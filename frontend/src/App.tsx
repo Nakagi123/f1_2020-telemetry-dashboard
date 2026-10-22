@@ -11,69 +11,73 @@ import { SessionCard } from "./components/dashboard/SessionCard";
 import { TelemetryCard } from "./components/dashboard/TelemetryCard";
 import { PedalBar } from "./components/dashboard/PedalBar";
 
-import type {
-  CarTelemetry,
-  DriverInfo,
-  SessionInfo,
-} from "./types/telemetry";
-
-// Temporary mock data.
-// We'll replace this with WebSocket data later.
-const telemetry: CarTelemetry = {
-  speed: 287,
-  gear: 7,
-  rpm: 11842,
-  throttle: 94,
-  brake: 12,
-};
-
-const driver: DriverInfo = {
-  driverName: "VERSTAPPEN",
-  teamName: "Red Bull Racing",
-  raceNumber: 33,
-};
-
-const session: SessionInfo = {
-  trackName: "Spa-Francorchamps",
-  sessionName: "Race",
-  weatherName: "Clear",
-  trackTemperature: 28,
-  airTemperature: 20,
-};
+import { useTelemetry } from "./hooks/useTelemetry";
 
 function App() {
+  const {
+    telemetry,
+    driver,
+    session,
+    status,
+  } = useTelemetry();
+
   return (
     <div className="min-h-screen bg-[#090d16] text-white">
       <div className="flex min-h-screen">
         <Sidebar />
 
         <main className="min-w-0 flex-1 p-5 md:p-8">
-          <DashboardHeader />
+          <DashboardHeader status={status} />
 
           {/* DRIVER + SESSION */}
           <section className="mb-6 grid gap-4 xl:grid-cols-2">
-            <DriverCard driver={driver} />
-            <SessionCard session={session} />
+            {driver ? (
+              <DriverCard driver={driver} />
+            ) : (
+              <div className="flex min-h-52 items-center justify-center rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-500">
+                Waiting for driver information...
+              </div>
+            )}
+
+            {session ? (
+              <SessionCard session={session} />
+            ) : (
+              <div className="flex min-h-52 items-center justify-center rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-500">
+                Waiting for session information...
+              </div>
+            )}
           </section>
 
           {/* TELEMETRY CARDS */}
           <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <TelemetryCard
               label="Speed"
-              value={telemetry.speed}
+              value={telemetry?.speed ?? "—"}
               unit="km/h"
               icon={Gauge}
             />
 
             <TelemetryCard
               label="Gear"
-              value={telemetry.gear}
+              value={
+                telemetry
+                  ? telemetry.gear === 0
+                    ? "N"
+                    : telemetry.gear === -1
+                      ? "R"
+                      : telemetry.gear
+                  : "—"
+              }
               icon={CircleGauge}
             />
 
             <TelemetryCard
               label="Engine RPM"
-              value={telemetry.rpm.toLocaleString()}
+              value={
+                telemetry
+                  ? telemetry.rpm.toLocaleString()
+                  : "—"
+              }
               unit="rpm"
               icon={Zap}
             />
@@ -88,13 +92,13 @@ function App() {
             <div className="grid gap-8 md:grid-cols-2">
               <PedalBar
                 label="Throttle"
-                value={telemetry.throttle}
+                value={telemetry?.throttle ?? 0}
                 color="bg-emerald-500"
               />
 
               <PedalBar
                 label="Brake"
-                value={telemetry.brake}
+                value={telemetry?.brake ?? 0}
                 color="bg-red-500"
               />
             </div>

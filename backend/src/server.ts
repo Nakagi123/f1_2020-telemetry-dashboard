@@ -1,54 +1,74 @@
 import { app } from "./app.js";
+
 import { startTelemetryReceiver } from "./modules/telemetry/telemetry.receiver.js";
+import { startWebSocketServer } from "./modules/websocket/websocket.server.js";
 
 const PORT = 3001;
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 HTTP server running at http://localhost:${PORT}`);
-  console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
+  console.log(
+    `🚀 HTTP server running at http://localhost:${PORT}`
+  );
+
+  console.log(
+    `💚 Health check: http://localhost:${PORT}/api/health`
+  );
 });
 
-const stopTelemetryReceiver = startTelemetryReceiver();
+// Start WebSocket server on the same HTTP port.
+const websocket = startWebSocketServer(server);
+
+// Store the latest message of each type.
+const latestMessages = new Map<string, unknown>();
+
+// Start receiving F1 2020 UDP packets.
+const stopTelemetryReceiver = startTelemetryReceiver(
+  (message) => {
+    latestMessages.set(message.type, message);
+
+    websocket.broadcast(message);
+  }
+);
 
 let isShuttingDown = false;
 
-async function shutdown(signal: string): Promise<void> {
+async function shutdown(): Promise<void> {
   if (isShuttingDown) {
     return;
   }
 
   isShuttingDown = true;
 
-  console.log(`\n🛑 Received ${signal}. Shutting down...`);
+  console.log("\n🛑 Shutting down servers...");
 
   try {
-    await Promise.all([
-      new Promise<void>((resolve, reject) => {
-        server.close((error?: Error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
+    await stopTelemetryReceiver();
 
-          console.log("🌐 HTTP server closed.");
-          resolve();
-        });
-      }),
-      stopTelemetryReceiver(),
-    ]);
+    await websocket.close();
 
-    console.log("🏁 Backend shutdown complete.");
-    process.exitCode = 0;
+    await new Promise<void>((resolve, reject) => {
+      server.close((error?: Error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        console.log("🚀 HTTP server closed.");
+        resolve();
+      });
+    });
+
+    console.log("✅ All servers shut down gracefully.");
   } catch (error) {
     console.error("❌ Shutdown error:", error);
     process.exitCode = 1;
   }
 }
 
-process.once("SIGINT", () => {
-  void shutdown("SIGINT");
+process.on("SIGINT", () => {
+  void shutdown();
 });
 
-process.once("SIGTERM", () => {
-  void shutdown("SIGTERM");
+process.on("SIGTERM", () => {
+  void shutdown();
 });
