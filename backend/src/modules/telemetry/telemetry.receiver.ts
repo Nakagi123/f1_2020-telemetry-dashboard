@@ -13,14 +13,14 @@ export function startTelemetryReceiver(): () => Promise<void> {
   const socket = dgram.createSocket("udp4");
 
   let isClosed = false;
-  let lastTrackId: number | null = null;
+  let lastSessionSummary: string | null = null;
 
   socket.on("error", (error: Error) => {
     console.error("❌ UDP receiver error:", error.message);
   });
 
   socket.on("message", (message: Buffer) => {
-    // Packet header must be present.
+    // Make sure the packet header is present.
     if (message.length < 24) {
       return;
     }
@@ -28,6 +28,9 @@ export function startTelemetryReceiver(): () => Promise<void> {
     const packetId = message.readUInt8(5);
 
     switch (packetId) {
+      // ==========================================
+      // CAR TELEMETRY — Packet ID 6
+      // ==========================================
       case PACKET_ID.CAR_TELEMETRY: {
         const telemetry = decodeCarTelemetry(message);
 
@@ -38,14 +41,35 @@ export function startTelemetryReceiver(): () => Promise<void> {
         break;
       }
 
+      // ==========================================
+      // SESSION INFORMATION — Packet ID 1
+      // ==========================================
       case PACKET_ID.SESSION: {
         const session = decodeSession(message);
 
-        if (session && session.trackId !== lastTrackId) {
-          lastTrackId = session.trackId;
+        if (!session) {
+          break;
+        }
+
+        // Create a unique summary of the session data.
+        const summary = [
+          session.trackId,
+          session.sessionType,
+          session.weather,
+          session.trackTemperature,
+          session.airTemperature,
+        ].join(":");
+
+        // Only print when something changes.
+        if (summary !== lastSessionSummary) {
+          lastSessionSummary = summary;
 
           console.log(
-            `🏁 Circuit detected: ${session.trackName}`
+            `\n🏁 Circuit: ${session.trackName}\n` +
+            `🏎️ Session: ${session.sessionName}\n` +
+            `🌤️ Weather: ${session.weatherName}\n` +
+            `🌡️ Track: ${session.trackTemperature}°C | ` +
+            `Air: ${session.airTemperature}°C\n`
           );
         }
 
@@ -53,6 +77,7 @@ export function startTelemetryReceiver(): () => Promise<void> {
       }
 
       default:
+        // Ignore packet types we haven't implemented yet.
         break;
     }
   });
@@ -74,6 +99,7 @@ export function startTelemetryReceiver(): () => Promise<void> {
     TELEMETRY_CONFIG.HOST
   );
 
+  // Return a function for graceful shutdown.
   return () =>
     new Promise<void>((resolve, reject) => {
       if (isClosed) {

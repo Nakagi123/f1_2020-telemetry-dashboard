@@ -6,10 +6,15 @@ import {
 export interface SessionInfo {
   trackId: number;
   trackName: string;
+  sessionType: number;
+  sessionName: string;
+  weather: number;
+  weatherName: string;
+  trackTemperature: number;
+  airTemperature: number;
 }
 
 const SESSION_PACKET_SIZE = 251;
-const TRACK_ID_OFFSET = 31;
 
 const TRACK_NAMES: Record<number, string> = {
   0: "Melbourne",
@@ -41,19 +46,41 @@ const TRACK_NAMES: Record<number, string> = {
   26: "Zandvoort",
 };
 
+const SESSION_NAMES: Record<number, string> = {
+  0: "Unknown",
+  1: "Practice 1",
+  2: "Practice 2",
+  3: "Practice 3",
+  4: "Short Practice",
+  5: "Qualifying 1",
+  6: "Qualifying 2",
+  7: "Qualifying 3",
+  8: "Short Qualifying",
+  9: "One-Shot Qualifying",
+  10: "Race",
+  11: "Race 2",
+  12: "Time Trial",
+};
+
+const WEATHER_NAMES: Record<number, string> = {
+  0: "Clear",
+  1: "Light Cloud",
+  2: "Overcast",
+  3: "Light Rain",
+  4: "Heavy Rain",
+  5: "Storm",
+};
+
 export function decodeSession(
   buffer: Buffer
 ): SessionInfo | null {
-  // Validate the Session packet size.
   if (buffer.length !== SESSION_PACKET_SIZE) {
     return null;
   }
 
-  // Read packet header.
   const packetFormat = buffer.readUInt16LE(0);
   const packetId = buffer.readUInt8(5);
 
-  // Only accept F1 2020 Session packets.
   if (
     packetFormat !== TELEMETRY_CONFIG.FORMAT ||
     packetId !== PACKET_ID.SESSION
@@ -61,15 +88,23 @@ export function decodeSession(
     return null;
   }
 
-  // Track ID is at byte offset 31.
-  const trackId = buffer.readInt8(TRACK_ID_OFFSET);
-
-  // Convert the numeric ID into a readable name.
-  const trackName =
-    TRACK_NAMES[trackId] ?? `Unknown (${trackId})`;
+  const weather = buffer.readUInt8(24);
+  const trackTemperature = buffer.readInt8(25);
+  const airTemperature = buffer.readInt8(26);
+  const sessionType = buffer.readUInt8(30);
+  const trackId = buffer.readInt8(31);
 
   return {
     trackId,
-    trackName,
+    trackName:
+      TRACK_NAMES[trackId] ?? `Unknown (${trackId})`,
+    sessionType,
+    sessionName:
+      SESSION_NAMES[sessionType] ?? `Unknown (${sessionType})`,
+    weather,
+    weatherName:
+      WEATHER_NAMES[weather] ?? `Unknown (${weather})`,
+    trackTemperature,
+    airTemperature,
   };
 }
