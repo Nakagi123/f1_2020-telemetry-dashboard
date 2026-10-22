@@ -1,0 +1,26 @@
+export const TELEMETRY_CONFIG = {
+  HOST: "127.0.0.1",
+  PORT: 20777,
+  FORMAT: 2020,
+} as const;
+
+export const PACKET = {
+  HEADER_SIZE: 24,
+  CAR_TELEMETRY_SIZE: 1307,
+  CAR_SIZE: 58,
+  CAR_COUNT: 22,
+  PLAYER_CAR_INDEX_OFFSET: 22,
+} as const;
+
+export const PACKET_ID = {
+  MOTION: 0,
+  SESSION: 1,
+  LAP_DATA: 2,
+  EVENT: 3,
+  PARTICIPANTS: 4,
+  CAR_SETUPS: 5,
+  CAR_TELEMETRY: 6,
+  CAR_STATUS: 7,
+  FINAL_CLASSIFICATION: 8,
+  LOBBY_INFO: 9,
+} as const;

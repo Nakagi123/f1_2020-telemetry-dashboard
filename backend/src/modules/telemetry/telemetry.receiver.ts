@@ -1,15 +1,16 @@
 import dgram from "node:dgram";
+
+import { TELEMETRY_CONFIG } from "./telemetry.constants.js";
 import { decodeCarTelemetry } from "./telemetry.decoder.js";
+import { logTelemetry } from "./telemetry.logger.js";
 
-const UDP_PORT = 20777;
-const UDP_HOST = "127.0.0.1";
-
-export function startTelemetryReceiver(): void {
+export function startTelemetryReceiver(): () => Promise<void> {
   const socket = dgram.createSocket("udp4");
+
+  let isClosed = false;
 
   socket.on("error", (error: Error) => {
     console.error("❌ UDP receiver error:", error.message);
-    socket.close();
   });
 
   socket.on("message", (message: Buffer) => {
@@ -19,24 +20,41 @@ export function startTelemetryReceiver(): void {
       return;
     }
 
-    const gear =
-      telemetry.gear === -1
-        ? "R"
-        : telemetry.gear === 0
-          ? "N"
-          : String(telemetry.gear);
+    logTelemetry(telemetry);
+  });
 
-    const throttle = Math.round(telemetry.throttle * 100);
-    const brake = Math.round(telemetry.brake * 100);
-
+  socket.on("listening", () => {
     console.log(
-      `🏎️ SPEED: ${telemetry.speed} km/h | ` +
-      `GEAR: ${gear} | RPM: ${telemetry.rpm} | ` +
-      `THROTTLE: ${throttle}% | BRAKE: ${brake}%`
+      `📡 UDP receiver listening on ` +
+      `${TELEMETRY_CONFIG.HOST}:${TELEMETRY_CONFIG.PORT}`
     );
   });
 
-  socket.bind(UDP_PORT, UDP_HOST, () => {
-    console.log(`📡 UDP receiver listening on ${UDP_HOST}:${UDP_PORT}`);
+  socket.on("close", () => {
+    isClosed = true;
+    console.log("📡 UDP receiver closed.");
   });
+
+  socket.bind(
+    TELEMETRY_CONFIG.PORT,
+    TELEMETRY_CONFIG.HOST
+  );
+
+  return () => {
+    return new Promise<void>((resolve, reject) => {
+      if (isClosed) {
+        resolve();
+        return;
+      }
+
+      socket.close((error?: Error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
+  };
 }

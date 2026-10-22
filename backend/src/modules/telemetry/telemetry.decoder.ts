@@ -1,30 +1,37 @@
-import type { CarTelemetry } from "./telemetry.types.js";
+import {
+  PACKET,
+  PACKET_ID,
+  TELEMETRY_CONFIG,
+} from "./telemetry.constants.js";
 
-const HEADER_SIZE = 24;
-const CAR_SIZE = 58;
-const CAR_COUNT = 22;
-const TELEMETRY_PACKET_SIZE = 1307;
+import type { CarTelemetry } from "./telemetry.types.js";
 
 export function decodeCarTelemetry(
   buffer: Buffer
 ): CarTelemetry | null {
-  if (buffer.length !== TELEMETRY_PACKET_SIZE) {
+  if (buffer.length !== PACKET.CAR_TELEMETRY_SIZE) {
     return null;
   }
 
   const packetFormat = buffer.readUInt16LE(0);
   const packetId = buffer.readUInt8(5);
-  const playerCarIndex = buffer.readUInt8(22);
+  const playerCarIndex = buffer.readUInt8(
+    PACKET.PLAYER_CAR_INDEX_OFFSET
+  );
 
-  if (packetFormat !== 2020 || packetId !== 6) {
+  if (
+    packetFormat !== TELEMETRY_CONFIG.FORMAT ||
+    packetId !== PACKET_ID.CAR_TELEMETRY
+  ) {
     return null;
   }
 
-  if (playerCarIndex >= CAR_COUNT) {
+  if (playerCarIndex >= PACKET.CAR_COUNT) {
     return null;
   }
 
-  const offset = HEADER_SIZE + playerCarIndex * CAR_SIZE;
+  const offset =
+    PACKET.HEADER_SIZE + playerCarIndex * PACKET.CAR_SIZE;
 
   return {
     speed: buffer.readUInt16LE(offset),
