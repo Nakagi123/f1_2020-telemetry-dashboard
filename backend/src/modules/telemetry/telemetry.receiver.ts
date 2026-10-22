@@ -8,19 +8,20 @@ import {
 import { decodeCarTelemetry } from "./telemetry.decoder.js";
 import { logTelemetry } from "./telemetry.logger.js";
 import { decodeSession } from "./telemetry.session.js";
+import { decodePlayerInfo } from "./telemetry.participants.js";
 
 export function startTelemetryReceiver(): () => Promise<void> {
   const socket = dgram.createSocket("udp4");
 
   let isClosed = false;
   let lastSessionSummary: string | null = null;
+  let lastPlayerSummary: string | null = null;
 
   socket.on("error", (error: Error) => {
     console.error("❌ UDP receiver error:", error.message);
   });
 
   socket.on("message", (message: Buffer) => {
-    // Make sure the packet header is present.
     if (message.length < 24) {
       return;
     }
@@ -28,9 +29,6 @@ export function startTelemetryReceiver(): () => Promise<void> {
     const packetId = message.readUInt8(5);
 
     switch (packetId) {
-      // ==========================================
-      // CAR TELEMETRY — Packet ID 6
-      // ==========================================
       case PACKET_ID.CAR_TELEMETRY: {
         const telemetry = decodeCarTelemetry(message);
 
@@ -41,9 +39,6 @@ export function startTelemetryReceiver(): () => Promise<void> {
         break;
       }
 
-      // ==========================================
-      // SESSION INFORMATION — Packet ID 1
-      // ==========================================
       case PACKET_ID.SESSION: {
         const session = decodeSession(message);
 
@@ -51,7 +46,6 @@ export function startTelemetryReceiver(): () => Promise<void> {
           break;
         }
 
-        // Create a unique summary of the session data.
         const summary = [
           session.trackId,
           session.sessionType,
@@ -60,7 +54,6 @@ export function startTelemetryReceiver(): () => Promise<void> {
           session.airTemperature,
         ].join(":");
 
-        // Only print when something changes.
         if (summary !== lastSessionSummary) {
           lastSessionSummary = summary;
 
@@ -76,8 +69,34 @@ export function startTelemetryReceiver(): () => Promise<void> {
         break;
       }
 
+      case PACKET_ID.PARTICIPANTS: {
+        const player = decodePlayerInfo(message);
+
+        if (!player) {
+          break;
+        }
+
+        const summary = [
+          player.driverId,
+          player.driverName,
+          player.teamId,
+          player.raceNumber,
+        ].join(":");
+
+        if (summary !== lastPlayerSummary) {
+          lastPlayerSummary = summary;
+
+          console.log(
+            `\n👤 Driver: ${player.driverName}\n` +
+            `🏎️ Team: ${player.teamName}\n` +
+            `🔢 Race number: ${player.raceNumber}\n`
+          );
+        }
+
+        break;
+      }
+
       default:
-        // Ignore packet types we haven't implemented yet.
         break;
     }
   });
@@ -99,7 +118,6 @@ export function startTelemetryReceiver(): () => Promise<void> {
     TELEMETRY_CONFIG.HOST
   );
 
-  // Return a function for graceful shutdown.
   return () =>
     new Promise<void>((resolve, reject) => {
       if (isClosed) {
