@@ -1,19 +1,19 @@
 # Dependencies
-node_modules/
+**/node_modules/
 
-# Compiled JavaScript
-dist/
+# Build output
+**/dist/
 
 # Environment variables
-.env
-.env.*
-
-# Allow environment template
-!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # Logs
 *.log
+npm-debug.log*
 
-# OS files
+# Editor and OS files
 .DS_Store
 Thumbs.db
+.vscode/
