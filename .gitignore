@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Compiled JavaScript
+dist/
+
+# Environment variables
+.env
+.env.*
+
+# Allow environment template
+!.env.example
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
